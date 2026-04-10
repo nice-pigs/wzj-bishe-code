@@ -15,7 +15,7 @@ const char* ssid = "cs";                    // 修改为你的WiFi
 const char* password = "88888888";          // 修改为你的WiFi密码
 
 // ============== 扣子云平台配置 ==============
-const char* serverHost = "rwzs4zf6nn.coze.site";
+const char* serverHost = "smkcc339ny.coze.site";
 const int serverPort = 443;  // HTTPS 端口
 
 // ============== 设备配置 ==============
@@ -54,8 +54,9 @@ struct SeatData {
 
 // ============== 上传计时器 ==============
 unsigned long lastUploadTime = 0;
-const unsigned long UPLOAD_INTERVAL = 3000;      // 3秒上传一次（配合STM32的2秒发送）
-// 注意：数据上传时会自动更新设备心跳，无需单独的心跳包
+unsigned long lastHeartbeatTime = 0;
+const unsigned long UPLOAD_INTERVAL = 5000;      // 5秒上传一次
+const unsigned long HEARTBEAT_INTERVAL = 10000;  // 10秒心跳一次
 
 WiFiClientSecure client;
 
@@ -105,12 +106,18 @@ void initSeatData() {
 void loop() {
     processSTM32Data();
     
-    // 定期上传（数据上传会自动更新设备心跳，无需单独发送心跳包）
+    // 定期上传
     if (millis() - lastUploadTime >= UPLOAD_INTERVAL) {
         lastUploadTime = millis();
         if (seatData.dataValid) {
             uploadToCozeCloud();
         }
+    }
+    
+    // 心跳
+    if (millis() - lastHeartbeatTime >= HEARTBEAT_INTERVAL) {
+        lastHeartbeatTime = millis();
+        sendHeartbeat();
     }
     
     // WiFi重连
@@ -119,10 +126,10 @@ void loop() {
         connectWiFi();
     }
     
-    // 数据超时检查（改为6秒，给STM32 2秒发送间隔留出余量）
-    if (seatData.dataValid && (millis() - seatData.lastUpdate > 6000)) {
+    // 数据超时
+    if (seatData.dataValid && (millis() - seatData.lastUpdate > 10000)) {
         seatData.dataValid = false;
-        Serial.println("[WARNING] Data timeout - No data from STM32 for 6 seconds");
+        Serial.println("[WARNING] Data timeout");
     }
 }
 
@@ -261,8 +268,43 @@ void uploadToCozeCloud() {
     client.stop();
 }
 
-// 心跳功能已移除：数据上传时后端会自动更新设备心跳时间
-// 每3秒上传一次数据，远小于30秒的离线判断时间，足以保持设备在线状态
+void sendHeartbeat() {
+    if (WiFi.status() != WL_CONNECTED) return;
+    
+    if (!client.connect(serverHost, serverPort)) {
+        return;
+    }
+    
+    StaticJsonDocument<128> doc;
+    doc["deviceKey"] = deviceKey;
+    doc["timestamp"] = millis();
+    doc["wifiSignal"] = WiFi.RSSI();
+    
+    String jsonData;
+    serializeJson(doc, jsonData);
+    
+    String request = "POST /api/devices/heartbeat HTTP/1.1\r\n";
+    request += "Host: " + String(serverHost) + "\r\n";
+    request += "Content-Type: application/json\r\n";
+    request += "Content-Length: " + String(jsonData.length()) + "\r\n";
+    request += "Connection: close\r\n";
+    request += "\r\n";
+    request += jsonData;
+    
+    client.print(request);
+    
+    delay(100);
+    
+    while (client.available()) {
+        String line = client.readStringUntil('\n');
+        if (line.startsWith("HTTP/1.1 200")) {
+            Serial.println("[HEARTBEAT] ✓ Sent");
+            break;
+        }
+    }
+    
+    client.stop();
+}
 
 void registerDevice() {
     if (WiFi.status() != WL_CONNECTED) {
@@ -342,66 +384,35 @@ void registerDevice() {
 void processSTM32Data() {
     static uint8_t rxBuffer[64];
     static uint8_t rxIndex = 0;
-    static unsigned long lastByteTime = 0;
-    static int totalBytesReceived = 0;
     
     while (STM32_SERIAL.available()) {
         uint8_t byte = STM32_SERIAL.read();
-        totalBytesReceived++;
-        lastByteTime = millis();
-        
-        // 调试：打印接收到的字节
-        if (totalBytesReceived <= 10) {
-            Serial.printf("[RX] Byte %d: 0x%02X\n", totalBytesReceived, byte);
-        }
         
         if (rxIndex == 0 && byte == 0xAA) {
             rxBuffer[rxIndex++] = byte;
-            Serial.println("[RX] Found packet header 0xAA");
         }
         else if (rxIndex > 0 && rxIndex < sizeof(rxBuffer)) {
             rxBuffer[rxIndex++] = byte;
             
             if (rxIndex >= 37 && rxBuffer[36] == 0x55) {
-                Serial.printf("[RX] Complete packet received (%d bytes)\n", rxIndex);
                 parseDataPacket(rxBuffer, rxIndex);
                 rxIndex = 0;
             }
         }
         else {
-            Serial.printf("[RX] Buffer overflow or invalid data, reset (rxIndex=%d)\n", rxIndex);
             rxIndex = 0;
         }
-    }
-    
-    // 定期报告串口状态
-    static unsigned long lastStatusReport = 0;
-    if (millis() - lastStatusReport > 5000) {
-        lastStatusReport = millis();
-        Serial.printf("[STATUS] Total bytes received: %d, Last byte: %lu ms ago\n", 
-            totalBytesReceived, 
-            lastByteTime > 0 ? (millis() - lastByteTime) : 0);
     }
 }
 
 void parseDataPacket(uint8_t* buffer, uint8_t len) {
-    Serial.printf("[PARSE] Parsing packet, len=%d\n", len);
-    
-    if (len < 6) {
-        Serial.println("[PARSE] ✗ Packet too short");
-        return;
-    }
-    if (buffer[0] != 0xAA || buffer[36] != 0x55) {
-        Serial.printf("[PARSE] ✗ Invalid header/tail: 0x%02X / 0x%02X\n", buffer[0], buffer[36]);
-        return;
-    }
+    if (len < 6) return;
+    if (buffer[0] != 0xAA || buffer[36] != 0x55) return;
     
     uint8_t type = buffer[1];
     uint8_t length = buffer[2];
     uint8_t* data = &buffer[3];
     uint8_t checksum = buffer[35];
-    
-    Serial.printf("[PARSE] Type=0x%02X, Length=%d, Checksum=0x%02X\n", type, length, checksum);
     
     // 校验和
     uint8_t calc_checksum = 0;
@@ -410,11 +421,9 @@ void parseDataPacket(uint8_t* buffer, uint8_t len) {
     }
     
     if (calc_checksum != checksum) {
-        Serial.printf("[RX] ✗ Checksum fail (calc:0x%02X, recv:0x%02X)\n", calc_checksum, checksum);
+        Serial.printf("[RX] ✗ Checksum fail\n");
         return;
     }
-    
-    Serial.println("[PARSE] ✓ Checksum OK");
     
     switch (type) {
         case 0x01: // 传感器数据 (温湿度+光照)
@@ -467,35 +476,6 @@ void parseDataPacket(uint8_t* buffer, uint8_t len) {
                 Serial.printf("[DATA] ✓ Extended - P1:%d P2:%d Dist:%dcm PIR:%d Score:%d\n", 
                     seatData.pressure1, seatData.pressure2, 
                     seatData.distance, seatData.pirState, seatData.detectionScore);
-            }
-            break;
-            
-        case 0x04: // 完整座位检测数据 (SeatDetectionData_t)
-            Serial.printf("[PARSE] Case 0x04: length=%d (need >= 14)\n", length);
-            if (length >= 14) {
-                // 解析完整数据结构（注意：STM32使用小端序）
-                // seat_occupied(1) + pressure1(1) + pressure2(1) + distance(2,小端) + pir_state(1) 
-                // + temperature(1) + humidity(1) + light_percent(1) + detection_score(1) + duration(4,小端)
-                seatData.occupied = (data[0] == 1);
-                seatData.pressure1 = data[1];
-                seatData.pressure2 = data[2];
-                seatData.distance = data[3] | (data[4] << 8);  // 小端序：低字节在前
-                seatData.pirState = data[5];
-                seatData.temperature = data[6];
-                seatData.humidity = data[7];
-                seatData.lightLevel = data[8] * 655;  // 百分比转换为0-65535
-                seatData.detectionScore = data[9];
-                seatData.duration = data[10] | (data[11] << 8) | (data[12] << 16) | (data[13] << 24);  // 小端序
-                
-                seatData.lastUpdate = millis();
-                seatData.dataValid = true;
-                
-                Serial.printf("[DATA] ✓ Complete - State:%s P:%d/%d D:%dcm PIR:%d T:%d°C H:%d%% Score:%d\n", 
-                    seatData.occupied ? "OCCUPIED" : "VACANT",
-                    seatData.pressure1, seatData.pressure2, 
-                    seatData.distance, seatData.pirState,
-                    seatData.temperature, seatData.humidity,
-                    seatData.detectionScore);
             }
             break;
     }
