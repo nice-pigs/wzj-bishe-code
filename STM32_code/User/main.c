@@ -120,9 +120,15 @@ int main(void)
             // 读取光照强度
             light_percent = LightSensor_GetPercent();
             
+            // 获取压力传感器原始GPIO电平（调试用）
+            uint8_t p1_gpio = Pressure_GetRawGPIO1();
+            uint8_t p2_gpio = Pressure_GetRawGPIO2();
+            
             printf("[SENSOR] P1:%d P2:%d Dist:%dcm PIR:%d Light:%d%% T:%dC H:%d%%\r\n", 
                    pressure1, pressure2, distance, pir_state, 
                    light_percent, temperature, humidity);
+            printf("[DEBUG] P1_GPIO:%d P2_GPIO:%d (1=高电平/无压力, 0=低电平/有压力)\r\n",
+                   p1_gpio, p2_gpio);
         }
         
         /*---------- 4. 更新座位状态（每0.5秒） ----------*/
