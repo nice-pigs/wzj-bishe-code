@@ -218,11 +218,20 @@ void uploadToCozeCloud() {
     
     // 读取响应
     String response = "";
+    String statusLine = "";
     bool headerEnded = false;
+    int statusCode = 0;
+    
     while (client.available()) {
         String line = client.readStringUntil('\n');
         if (!headerEnded) {
             if (line.startsWith("HTTP/1.1")) {
+                statusLine = line;
+                // 提取状态码
+                int spacePos = line.indexOf(' ');
+                if (spacePos > 0) {
+                    statusCode = line.substring(spacePos + 1, spacePos + 4).toInt();
+                }
                 Serial.printf("[COZE] Response: %s\n", line.c_str());
             }
             if (line == "\r") {
@@ -233,12 +242,23 @@ void uploadToCozeCloud() {
         }
     }
     
+    // 显示响应体（如果有）
     if (response.length() > 0) {
+        Serial.printf("[COZE] Body: %s\n", response.c_str());
+    }
+    
+    // 根据状态码判断
+    if (statusCode == 200 || statusCode == 201) {
         Serial.printf("[COZE] ✓ SUCCESS - %s\n", 
             seatData.occupied ? "OCCUPIED" : "VACANT");
         Serial.printf("[COZE] Data: T:%d°C H:%d%% L:%d P:%d/%d D:%dcm\n",
             seatData.temperature, seatData.humidity, seatData.lightLevel,
             seatData.pressure1, seatData.pressure2, seatData.distance);
+    } else if (statusCode == 404) {
+        Serial.println("[COZE] ✗ ERROR: API endpoint not found (404)");
+        Serial.println("[COZE] Please check if the API is deployed on Coze platform");
+    } else if (statusCode > 0) {
+        Serial.printf("[COZE] ✗ ERROR: HTTP %d\n", statusCode);
     }
     
     client.stop();
