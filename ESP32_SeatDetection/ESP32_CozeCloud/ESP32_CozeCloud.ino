@@ -427,13 +427,23 @@ void processSTM32Data() {
 }
 
 void parseDataPacket(uint8_t* buffer, uint8_t len) {
-    if (len < 6) return;
-    if (buffer[0] != 0xAA || buffer[36] != 0x55) return;
+    Serial.printf("[PARSE] Parsing packet, len=%d\n", len);
+    
+    if (len < 6) {
+        Serial.println("[PARSE] ✗ Packet too short");
+        return;
+    }
+    if (buffer[0] != 0xAA || buffer[36] != 0x55) {
+        Serial.printf("[PARSE] ✗ Invalid header/tail: 0x%02X / 0x%02X\n", buffer[0], buffer[36]);
+        return;
+    }
     
     uint8_t type = buffer[1];
     uint8_t length = buffer[2];
     uint8_t* data = &buffer[3];
     uint8_t checksum = buffer[35];
+    
+    Serial.printf("[PARSE] Type=0x%02X, Length=%d, Checksum=0x%02X\n", type, length, checksum);
     
     // 校验和
     uint8_t calc_checksum = 0;
@@ -442,9 +452,11 @@ void parseDataPacket(uint8_t* buffer, uint8_t len) {
     }
     
     if (calc_checksum != checksum) {
-        Serial.printf("[RX] ✗ Checksum fail\n");
+        Serial.printf("[RX] ✗ Checksum fail (calc:0x%02X, recv:0x%02X)\n", calc_checksum, checksum);
         return;
     }
+    
+    Serial.println("[PARSE] ✓ Checksum OK");
     
     switch (type) {
         case 0x01: // 传感器数据 (温湿度+光照)
