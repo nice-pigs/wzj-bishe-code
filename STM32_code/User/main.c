@@ -76,7 +76,7 @@ int main(void)
     /*========== 定时器 ==========*/
     uint32_t sensor_timer = 0;      // 传感器读取（每0.5秒，加快响应）
     uint32_t display_timer = 0;     // 显示更新（每0.5秒，加快响应）
-    uint32_t esp32_timer = 0;       // ESP32数据发送（每5秒）
+    uint32_t esp32_timer = 0;       // ESP32数据发送（每2秒，加快响应）
     uint32_t state_timer = 0;       // 状态持续时间（每秒）
     
     printf("[SYSTEM] Seat detection system started!\r\n");
@@ -145,8 +145,8 @@ int main(void)
             Display_Seat_Status();
         }
         
-        /*---------- 6. 发送数据到ESP32（每5秒） ----------*/
-        if(++esp32_timer >= 500000)
+        /*---------- 6. 发送数据到ESP32（每2秒，加快响应） ----------*/
+        if(++esp32_timer >= 200000)
         {
             esp32_timer = 0;
             Send_Data_To_ESP32();

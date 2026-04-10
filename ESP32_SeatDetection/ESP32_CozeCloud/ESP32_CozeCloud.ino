@@ -55,7 +55,7 @@ struct SeatData {
 // ============== 上传计时器 ==============
 unsigned long lastUploadTime = 0;
 unsigned long lastHeartbeatTime = 0;
-const unsigned long UPLOAD_INTERVAL = 5000;      // 5秒上传一次
+const unsigned long UPLOAD_INTERVAL = 3000;      // 3秒上传一次（配合STM32的2秒发送）
 const unsigned long HEARTBEAT_INTERVAL = 10000;  // 10秒心跳一次
 
 WiFiClientSecure client;
@@ -126,10 +126,10 @@ void loop() {
         connectWiFi();
     }
     
-    // 数据超时
-    if (seatData.dataValid && (millis() - seatData.lastUpdate > 10000)) {
+    // 数据超时检查（改为6秒，给STM32 2秒发送间隔留出余量）
+    if (seatData.dataValid && (millis() - seatData.lastUpdate > 6000)) {
         seatData.dataValid = false;
-        Serial.println("[WARNING] Data timeout");
+        Serial.println("[WARNING] Data timeout - No data from STM32 for 6 seconds");
     }
 }
 
