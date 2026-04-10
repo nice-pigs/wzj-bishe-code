@@ -7,6 +7,7 @@
  */
 
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 
 // ============== WiFi配置 ==============
@@ -15,7 +16,7 @@ const char* password = "88888888";          // 修改为你的WiFi密码
 
 // ============== 扣子云平台配置 ==============
 const char* serverHost = "smkcc339ny.coze.site";
-const int serverPort = 80;
+const int serverPort = 443;  // HTTPS 端口
 
 // ============== 设备配置 ==============
 const char* deviceKey = "esp32-seat-001";   // 设备唯一标识
@@ -57,14 +58,14 @@ unsigned long lastHeartbeatTime = 0;
 const unsigned long UPLOAD_INTERVAL = 5000;      // 5秒上传一次
 const unsigned long HEARTBEAT_INTERVAL = 10000;  // 10秒心跳一次
 
-WiFiClient client;
+WiFiClientSecure client;
 
 void setup() {
     Serial.begin(115200);
     delay(100);
     
-    Serial.println("\n=== ESP32 Seat Detection - Coze Cloud ===");
-    Serial.println("Target: smkcc339ny.coze.site");
+    Serial.println("\n=== ESP32 Seat Detection - Coze Cloud (HTTPS) ===");
+    Serial.println("Target: https://smkcc339ny.coze.site");
     
     // 初始化数据
     initSeatData();
@@ -72,6 +73,10 @@ void setup() {
     // STM32串口
     STM32_SERIAL.begin(STM32_BAUD, SERIAL_8N1, STM32_RX_PIN, STM32_TX_PIN);
     Serial.println("[INIT] STM32 Serial initialized");
+    
+    // 配置 HTTPS 客户端 - 不验证证书（用于测试）
+    client.setInsecure();
+    Serial.println("[INIT] HTTPS client configured (insecure mode)");
     
     // 连接WiFi
     connectWiFi();
