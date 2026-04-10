@@ -12,16 +12,16 @@ void Pressure_Init(void)
     
     GPIO_InitTypeDef GPIO_InitStructure;
     
-    // PB4配置为下拉输入（压力传感器通道1）
-    // 改用下拉，避免上拉电阻干扰
+    // PB4配置为浮空输入（压力传感器通道1）
+    // 浮空输入：不上拉也不下拉，让传感器自己决定电平
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;  // 下拉输入
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;  // 浮空输入
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
     
-    // PB5配置为下拉输入（压力传感器通道2）
+    // PB5配置为浮空输入（压力传感器通道2）
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;  // 下拉输入
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;  // 浮空输入
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
