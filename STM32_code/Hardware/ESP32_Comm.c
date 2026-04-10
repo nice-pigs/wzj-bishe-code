@@ -117,6 +117,12 @@ void ESP32_SendSeatDetectionData(SeatDetectionData_t *seat_data)
            seat_data->pressure1, seat_data->pressure2,
            seat_data->distance, seat_data->pir_state,
            seat_data->detection_score);
+    
+    // 调试：打印数据结构大小和前几个字节
+    printf("[DEBUG] SeatDetectionData_t size: %d bytes\r\n", sizeof(SeatDetectionData_t));
+    printf("[DEBUG] Data bytes: %02X %02X %02X %02X %02X %02X %02X %02X %02X %02X\r\n",
+           packet.data[0], packet.data[1], packet.data[2], packet.data[3], packet.data[4],
+           packet.data[5], packet.data[6], packet.data[7], packet.data[8], packet.data[9]);
 }
 
 /**

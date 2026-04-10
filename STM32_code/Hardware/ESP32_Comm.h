@@ -13,7 +13,7 @@ typedef enum
 } DataType_t;
 
 // 传感器数据结构（环境数据）
-typedef struct
+typedef struct __attribute__((packed))
 {
     uint8_t temperature;        // 温度
     uint8_t humidity;          // 湿度
@@ -23,7 +23,7 @@ typedef struct
 } SensorData_t;
 
 // 座位检测数据结构（完整数据）
-typedef struct
+typedef struct __attribute__((packed))
 {
     uint8_t seat_occupied;     // 座位占用状态（0=空闲，1=占用）
     uint8_t pressure1;         // 压力传感器1
