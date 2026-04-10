@@ -80,6 +80,10 @@ void setup() {
     
     // 连接WiFi
     connectWiFi();
+    
+    // 注册设备
+    delay(2000);
+    registerDevice();
 }
 
 void initSeatData() {
@@ -297,6 +301,81 @@ void sendHeartbeat() {
             Serial.println("[HEARTBEAT] ✓ Sent");
             break;
         }
+    }
+    
+    client.stop();
+}
+
+void registerDevice() {
+    if (WiFi.status() != WL_CONNECTED) {
+        Serial.println("[REGISTER] WiFi not connected");
+        return;
+    }
+    
+    Serial.println("[REGISTER] Registering device...");
+    
+    if (!client.connect(serverHost, serverPort)) {
+        Serial.println("[REGISTER] ✗ Connection failed");
+        return;
+    }
+    
+    StaticJsonDocument<128> doc;
+    doc["deviceKey"] = deviceKey;
+    doc["deviceName"] = deviceName;
+    
+    String jsonData;
+    serializeJson(doc, jsonData);
+    
+    String request = "POST /api/devices/register HTTP/1.1\r\n";
+    request += "Host: " + String(serverHost) + "\r\n";
+    request += "Content-Type: application/json\r\n";
+    request += "Content-Length: " + String(jsonData.length()) + "\r\n";
+    request += "Connection: close\r\n";
+    request += "\r\n";
+    request += jsonData;
+    
+    Serial.printf("[REGISTER] Sending: %s\n", jsonData.c_str());
+    client.print(request);
+    
+    // 等待响应
+    unsigned long timeout = millis();
+    while (client.available() == 0) {
+        if (millis() - timeout > 5000) {
+            Serial.println("[REGISTER] ✗ Timeout");
+            client.stop();
+            return;
+        }
+    }
+    
+    // 读取响应
+    bool headerEnded = false;
+    int statusCode = 0;
+    String response = "";
+    
+    while (client.available()) {
+        String line = client.readStringUntil('\n');
+        if (!headerEnded) {
+            if (line.startsWith("HTTP/1.1")) {
+                int spacePos = line.indexOf(' ');
+                if (spacePos > 0) {
+                    statusCode = line.substring(spacePos + 1, spacePos + 4).toInt();
+                }
+                Serial.printf("[REGISTER] Response: %s\n", line.c_str());
+            }
+            if (line == "\r") {
+                headerEnded = true;
+            }
+        } else {
+            response += line;
+        }
+    }
+    
+    if (statusCode == 200) {
+        Serial.println("[REGISTER] ✓ Device registered successfully");
+    } else if (statusCode == 404) {
+        Serial.println("[REGISTER] ✗ API not found - Please deploy the backend first");
+    } else if (statusCode > 0) {
+        Serial.printf("[REGISTER] ✗ HTTP %d\n", statusCode);
     }
     
     client.stop();
