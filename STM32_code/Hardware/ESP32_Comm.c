@@ -90,29 +90,33 @@ void ESP32_SendDeviceState(DeviceState_t *device_state)
     
     ESP32_SendPacket(&packet);
     
-    printf("[ESP32] Device state sent - LED:%d, Fan:%d, Curtain:%d\r\n", 
-           device_state->led_state, device_state->fan_state, device_state->curtain_state);
+    printf("[ESP32] Device state sent - Green:%d, Red:%d, Seat:%s\r\n", 
+           device_state->green_led, device_state->red_led, 
+           device_state->seat_occupied ? "OCCUPIED" : "VACANT");
 }
 
 /**
-  * 函    数：发送报警信息
-  * 参    数：alarm_type - 报警类型, alarm_level - 报警级别
+  * 函    数：发送座位检测完整数据
+  * 参    数：seat_data - 座位检测数据指针
   * 返 回 值：无
   */
-void ESP32_SendAlarm(uint8_t alarm_type, uint8_t alarm_level)
+void ESP32_SendSeatDetectionData(SeatDetectionData_t *seat_data)
 {
     DataPacket_t packet;
     
     packet.header = 0xAA;
-    packet.type = DATA_TYPE_ALARM;
-    packet.length = 2;
-    packet.data[0] = alarm_type;
-    packet.data[1] = alarm_level;
+    packet.type = DATA_TYPE_SEAT;
+    packet.length = sizeof(SeatDetectionData_t);
+    memcpy(packet.data, seat_data, sizeof(SeatDetectionData_t));
     packet.tail = 0x55;
     
     ESP32_SendPacket(&packet);
     
-    printf("[ESP32] Alarm sent - Type:%d, Level:%d\r\n", alarm_type, alarm_level);
+    printf("[ESP32] Seat data sent - State:%s, P:%d/%d, Dist:%dcm, PIR:%d, Score:%d\r\n", 
+           seat_data->seat_occupied ? "OCCUPIED" : "VACANT",
+           seat_data->pressure1, seat_data->pressure2,
+           seat_data->distance, seat_data->pir_state,
+           seat_data->detection_score);
 }
 
 /**

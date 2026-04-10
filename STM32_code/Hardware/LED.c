@@ -5,7 +5,7 @@
   * 函    数：LED初始化
   * 参    数：无
   * 返 回 值：无
-  * 说    明：直接GPIO驱动，不使用继电器（继电器需要12V供电）
+  * 说    明：初始化绿色LED(PA5)和红色LED(PA6)
   */
 void LED_Init(void)
 {
@@ -15,32 +15,73 @@ void LED_Init(void)
 	/*GPIO初始化*/
 	GPIO_InitTypeDef GPIO_InitStructure;
 	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5 | GPIO_Pin_6;		// PA5(绿色) + PA6(红色)
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(GPIOA, &GPIO_InitStructure);						//将PA5引脚初始化为推挽输出
+	GPIO_Init(GPIOA, &GPIO_InitStructure);						//将PA5和PA6初始化为推挽输出
 	
 	/*设置GPIO默认电平*/
-	GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_RESET);				//设置PA5引脚为低电平，LED默认关闭（直接GPIO驱动）
+	GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_RESET);				//绿色LED默认关闭
+	GPIO_WriteBit(GPIOA, GPIO_Pin_6, Bit_RESET);				//红色LED默认关闭
 }
 
 /**
-  * 函    数：LED开启
+  * 函    数：绿色LED开启
+  * 参    数：无
+  * 返 回 值：无
+  */
+void LED_Green_On(void)
+{
+	GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_SET);					//PA5高电平，绿色LED开启
+}
+
+/**
+  * 函    数：绿色LED关闭
+  * 参    数：无
+  * 返 回 值：无
+  */
+void LED_Green_Off(void)
+{
+	GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_RESET);				//PA5低电平，绿色LED关闭
+}
+
+/**
+  * 函    数：红色LED开启
+  * 参    数：无
+  * 返 回 值：无
+  */
+void LED_Red_On(void)
+{
+	GPIO_WriteBit(GPIOA, GPIO_Pin_6, Bit_SET);					//PA6高电平，红色LED开启
+}
+
+/**
+  * 函    数：红色LED关闭
+  * 参    数：无
+  * 返 回 值：无
+  */
+void LED_Red_Off(void)
+{
+	GPIO_WriteBit(GPIOA, GPIO_Pin_6, Bit_RESET);				//PA6低电平，红色LED关闭
+}
+
+/**
+  * 函    数：LED开启（兼容旧代码，控制绿色LED）
   * 参    数：无
   * 返 回 值：无
   */
 void LED_On(void)
 {
-	GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_SET);					//设置PA5引脚为高电平，LED开启（直接GPIO驱动，高电平=3.3V）
+	LED_Green_On();
 }
 
 /**
-  * 函    数：LED关闭
+  * 函    数：LED关闭（兼容旧代码，控制绿色LED）
   * 参    数：无
   * 返 回 值：无
   */
 void LED_Off(void)
 {
-	GPIO_WriteBit(GPIOA, GPIO_Pin_5, Bit_RESET);				//设置PA5引脚为低电平，LED关闭（直接GPIO驱动，低电平=0V）
+	LED_Green_Off();
 }
 
 /**

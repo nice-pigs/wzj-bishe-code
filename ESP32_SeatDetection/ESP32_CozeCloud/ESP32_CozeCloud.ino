@@ -15,7 +15,7 @@ const char* ssid = "cs";                    // 修改为你的WiFi
 const char* password = "88888888";          // 修改为你的WiFi密码
 
 // ============== 扣子云平台配置 ==============
-const char* serverHost = "smkcc339ny.coze.site";
+const char* serverHost = "rwzs4zf6nn.coze.site";
 const int serverPort = 443;  // HTTPS 端口
 
 // ============== 设备配置 ==============
@@ -440,7 +440,8 @@ void parseDataPacket(uint8_t* buffer, uint8_t len) {
             
         case 0x02: // 设备状态 (占用状态)
             if (length >= 4) {
-                bool newOccupied = (data[2] == 1);
+                // 新的DeviceState_t结构：green_led, red_led, buzzer_state, seat_occupied
+                bool newOccupied = (data[3] == 1);  // seat_occupied是第4个字节
                 if (newOccupied != seatData.occupied) {
                     Serial.printf("[DATA] ✓ State: %s -> %s\n",
                         seatData.occupied ? "OCCUPIED" : "VACANT",
@@ -475,6 +476,34 @@ void parseDataPacket(uint8_t* buffer, uint8_t len) {
                 Serial.printf("[DATA] ✓ Extended - P1:%d P2:%d Dist:%dcm PIR:%d Score:%d\n", 
                     seatData.pressure1, seatData.pressure2, 
                     seatData.distance, seatData.pirState, seatData.detectionScore);
+            }
+            break;
+            
+        case 0x04: // 完整座位检测数据 (SeatDetectionData_t)
+            if (length >= 16) {
+                // 解析完整数据结构
+                // seat_occupied(1) + pressure1(1) + pressure2(1) + distance(2) + pir_state(1) 
+                // + temperature(1) + humidity(1) + light_percent(1) + detection_score(1) + duration(4)
+                seatData.occupied = (data[0] == 1);
+                seatData.pressure1 = data[1];
+                seatData.pressure2 = data[2];
+                seatData.distance = (data[3] << 8) | data[4];
+                seatData.pirState = data[5];
+                seatData.temperature = data[6];
+                seatData.humidity = data[7];
+                seatData.lightLevel = data[8] * 655;  // 百分比转换为0-65535
+                seatData.detectionScore = data[9];
+                seatData.duration = (data[10] << 24) | (data[11] << 16) | (data[12] << 8) | data[13];
+                
+                seatData.lastUpdate = millis();
+                seatData.dataValid = true;
+                
+                Serial.printf("[DATA] ✓ Complete - State:%s P:%d/%d D:%dcm PIR:%d T:%d°C H:%d%% Score:%d\n", 
+                    seatData.occupied ? "OCCUPIED" : "VACANT",
+                    seatData.pressure1, seatData.pressure2, 
+                    seatData.distance, seatData.pirState,
+                    seatData.temperature, seatData.humidity,
+                    seatData.detectionScore);
             }
             break;
     }

@@ -282,7 +282,8 @@ void parseDataPacket(uint8_t* buffer, uint8_t len) {
             
         case 0x02: // 设备状态
             if (length >= 4) {
-                bool newOccupied = (data[2] == 1);
+                // 新的DeviceState_t结构：green_led, red_led, buzzer_state, seat_occupied
+                bool newOccupied = (data[3] == 1);  // seat_occupied是第4个字节
                 if (newOccupied != seatData.occupied) {
                     Serial.printf("[DATA] ✓ State: %s -> %s\n",
                         seatData.occupied ? "OCCUPIED" : "VACANT",

@@ -74,8 +74,8 @@ int main(void)
     Display_Welcome();
     
     /*========== 定时器 ==========*/
-    uint32_t sensor_timer = 0;      // 传感器读取（每1秒）
-    uint32_t display_timer = 0;     // 显示更新（每1秒）
+    uint32_t sensor_timer = 0;      // 传感器读取（每0.5秒，加快响应）
+    uint32_t display_timer = 0;     // 显示更新（每0.5秒，加快响应）
     uint32_t esp32_timer = 0;       // ESP32数据发送（每5秒）
     uint32_t state_timer = 0;       // 状态持续时间（每秒）
     
@@ -92,12 +92,15 @@ int main(void)
         /*---------- 2. 处理按键输入 ----------*/
         Handle_Key_Input();
         
-        /*---------- 3. 读取传感器数据（每1秒） ----------*/
-        if(++sensor_timer >= 100000)
+        /*---------- 3. 读取传感器数据（每0.5秒，加快响应） ----------*/
+        if(++sensor_timer >= 50000)
         {
             sensor_timer = 0;
             
             // 读取压力传感器（最重要）
+            // 同时读取原始GPIO电平（调试用）
+            uint8_t p1_gpio = Pressure_GetRawGPIO1();
+            uint8_t p2_gpio = Pressure_GetRawGPIO2();
             pressure1 = Pressure_GetState1();
             pressure2 = Pressure_GetState2();
             
@@ -120,27 +123,23 @@ int main(void)
             // 读取光照强度
             light_percent = LightSensor_GetPercent();
             
-            // 获取压力传感器原始GPIO电平（调试用）
-            uint8_t p1_gpio = Pressure_GetRawGPIO1();
-            uint8_t p2_gpio = Pressure_GetRawGPIO2();
-            
             printf("[SENSOR] P1:%d P2:%d Dist:%dcm PIR:%d Light:%d%% T:%dC H:%d%%\r\n", 
                    pressure1, pressure2, distance, pir_state, 
                    light_percent, temperature, humidity);
-            printf("[DEBUG] P1_GPIO:%d P2_GPIO:%d (1=高电平/无压力, 0=低电平/有压力)\r\n",
+            printf("[DEBUG] P1_GPIO:%d P2_GPIO:%d (1=HIGH/Pressed, 0=LOW/Released)\r\n",
                    p1_gpio, p2_gpio);
         }
         
-        /*---------- 4. 更新座位状态（每0.5秒） ----------*/
+        /*---------- 4. 更新座位状态（每0.3秒，更快响应） ----------*/
         static uint32_t state_check_timer = 0;
-        if(++state_check_timer >= 50000)
+        if(++state_check_timer >= 30000)
         {
             state_check_timer = 0;
             Update_Seat_State_Final();
         }
         
-        /*---------- 5. 更新显示（每1秒） ----------*/
-        if(++display_timer >= 100000)
+        /*---------- 5. 更新显示（每0.5秒，加快响应） ----------*/
+        if(++display_timer >= 50000)
         {
             display_timer = 0;
             Display_Seat_Status();
@@ -207,6 +206,15 @@ void System_Init(void)
     
     printf("[INIT] Initializing LEDs...\r\n");
     LED_Init();
+    
+    // LED自检：两个灯都亮2秒
+    printf("[INIT] LED self-test: Both LEDs ON for 2 seconds...\r\n");
+    LED_Green_On();
+    LED_Red_On();
+    Delay_ms(2000);
+    LED_Green_Off();
+    LED_Red_Off();
+    printf("[INIT] LED self-test completed\r\n");
     
     printf("[INIT] Initializing ESP32 communication...\r\n");
     ESP32_Comm_Init();
@@ -307,11 +315,11 @@ void Update_Seat_State_Final(void)
     
     uint8_t new_state = (occupied_score >= 70) ? SEAT_OCCUPIED : SEAT_VACANT;
     
-    // 5. 防抖动：连续3次确认才改变状态
+    // 5. 防抖动：连续2次确认才改变状态（加快响应）
     if(new_state == last_state)
     {
         confirm_count++;
-        if(confirm_count >= 3 && new_state != current_seat_state)
+        if(confirm_count >= 2 && new_state != current_seat_state)
         {
             // 状态确认改变
             current_seat_state = new_state;
@@ -322,6 +330,15 @@ void Update_Seat_State_Final(void)
                 occupied_duration = 0;
                 printf("\r\n[STATE CHANGE] VACANT -> OCCUPIED\r\n");
                 printf("[REASON] Score: %d >= 70\r\n\r\n", occupied_score);
+                
+                // 立即更新LED
+                LED_Green_Off();
+                LED_Red_On();
+                
+                // 立即更新显示
+                Display_Seat_Status();
+                
+                // 蜂鸣器提示
                 Buzzer_Beep(200);
                 Delay_ms(100);
                 Buzzer_Beep(200);
@@ -331,6 +348,15 @@ void Update_Seat_State_Final(void)
                 vacant_duration = 0;
                 printf("\r\n[STATE CHANGE] OCCUPIED -> VACANT\r\n");
                 printf("[REASON] Score: %d < 70\r\n\r\n", occupied_score);
+                
+                // 立即更新LED
+                LED_Green_On();
+                LED_Red_Off();
+                
+                // 立即更新显示
+                Display_Seat_Status();
+                
+                // 蜂鸣器提示
                 Buzzer_Beep(200);
             }
         }
@@ -341,16 +367,16 @@ void Update_Seat_State_Final(void)
         confirm_count = 0;
     }
     
-    // 6. 更新LED指示灯
+    // 6. 保持LED状态与当前状态一致（每次都更新，确保同步）
     if(current_seat_state == SEAT_OCCUPIED)
     {
-        LED_Off();                                      // 关闭绿灯
-        GPIO_WriteBit(GPIOA, GPIO_Pin_6, Bit_SET);     // 打开红灯
+        LED_Green_Off();
+        LED_Red_On();
     }
     else
     {
-        LED_On();                                       // 打开绿灯
-        GPIO_WriteBit(GPIOA, GPIO_Pin_6, Bit_RESET);   // 关闭红灯
+        LED_Green_On();
+        LED_Red_Off();
     }
 }
 
@@ -432,29 +458,27 @@ void Display_Seat_Status(void)
  *============================================================================*/
 void Send_Data_To_ESP32(void)
 {
-    SensorData_t sensor_data;
-    DeviceState_t device_state;
+    // 计算检测分数（用于调试）
+    uint8_t occupied_score = 0;
+    if(pressure1 == 1 || pressure2 == 1) occupied_score += 70;
+    if(distance > 0 && distance < 50) occupied_score += 25;
+    if(pir_state == 1) occupied_score += 5;
     
-    // 准备传感器数据
-    sensor_data.temperature = temperature;
-    sensor_data.humidity = humidity;
-    sensor_data.light_adc = LightSensor_ReadADC();
-    sensor_data.light_percent = light_percent;
-    sensor_data.light_digital = LightSensor_GetDigital();
+    // 准备完整的座位检测数据
+    SeatDetectionData_t seat_data;
+    seat_data.seat_occupied = current_seat_state;
+    seat_data.pressure1 = pressure1;
+    seat_data.pressure2 = pressure2;
+    seat_data.distance = distance;
+    seat_data.pir_state = pir_state;
+    seat_data.temperature = temperature;
+    seat_data.humidity = humidity;
+    seat_data.light_percent = light_percent;
+    seat_data.detection_score = occupied_score;
+    seat_data.duration = (current_seat_state == SEAT_OCCUPIED) ? occupied_duration : vacant_duration;
     
-    // 准备设备状态
-    device_state.led_state = (current_seat_state == SEAT_VACANT) ? 1 : 0;
-    device_state.fan_state = (current_seat_state == SEAT_OCCUPIED) ? 1 : 0;
-    device_state.curtain_state = current_seat_state;
-    device_state.buzzer_state = 0;
-    
-    // 发送数据
-    ESP32_SendSensorData(&sensor_data);
-    ESP32_SendDeviceState(&device_state);
-    
-    printf("[ESP32] Data sent - State:%s, P:%d/%d, Dist:%dcm, T:%dC, H:%d%%\r\n",
-           current_seat_state == SEAT_OCCUPIED ? "OCCUPIED" : "VACANT",
-           pressure1, pressure2, distance, temperature, humidity);
+    // 发送完整数据
+    ESP32_SendSeatDetectionData(&seat_data);
 }
 
 /*=============================================================================
