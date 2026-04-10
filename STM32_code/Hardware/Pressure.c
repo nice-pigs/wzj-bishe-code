@@ -12,15 +12,16 @@ void Pressure_Init(void)
     
     GPIO_InitTypeDef GPIO_InitStructure;
     
-    // PB4配置为上拉输入（压力传感器通道1）
+    // PB4配置为下拉输入（压力传感器通道1）
+    // 改用下拉，避免上拉电阻干扰
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_4;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;  // 上拉输入
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;  // 下拉输入
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
     
-    // PB5配置为上拉输入（压力传感器通道2）
+    // PB5配置为下拉输入（压力传感器通道2）
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;  // 上拉输入
+    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;  // 下拉输入
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
     GPIO_Init(GPIOB, &GPIO_InitStructure);
 }
