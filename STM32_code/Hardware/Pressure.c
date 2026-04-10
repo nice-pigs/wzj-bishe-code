@@ -33,14 +33,14 @@ void Pressure_Init(void)
 uint8_t Pressure_GetState1(void)
 {
     // 读取PB4引脚状态（通道1）
-    // 高电平=有压力，低电平=无压力
-    if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_4) == Bit_SET)
+    // 薄膜压力传感器：低电平=有压力（LED亮），高电平=无压力（LED灭）
+    if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_4) == Bit_RESET)
     {
-        return 1;  // 有压力
+        return 1;  // 有压力（低电平）
     }
     else
     {
-        return 0;  // 无压力
+        return 0;  // 无压力（高电平）
     }
 }
 
@@ -52,14 +52,14 @@ uint8_t Pressure_GetState1(void)
 uint8_t Pressure_GetState2(void)
 {
     // 读取PB5引脚状态（通道2）
-    // 高电平=有压力，低电平=无压力
-    if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_5) == Bit_SET)
+    // 薄膜压力传感器：低电平=有压力（LED亮），高电平=无压力（LED灭）
+    if(GPIO_ReadInputDataBit(GPIOB, GPIO_Pin_5) == Bit_RESET)
     {
-        return 1;  // 有压力
+        return 1;  // 有压力（低电平）
     }
     else
     {
-        return 0;  // 无压力
+        return 0;  // 无压力（高电平）
     }
 }
 
