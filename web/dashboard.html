@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>座位检测系统 - 智能监控平台</title>
+    <link rel="stylesheet" href="css/dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <span class="icon">🪑</span>
+                <span class="title">座位检测系统</span>
+            </div>
+            <div class="nav-menu">
+                <a href="#dashboard" class="nav-link active">仪表盘</a>
+                <a href="#history" class="nav-link">历史记录</a>
+                <a href="#statistics" class="nav-link">数据统计</a>
+                <a href="#settings" class="nav-link">系统设置</a>
+            </div>
+            <div class="nav-status">
+                <span class="status-dot" id="connectionDot"></span>
+                <span id="connectionText">连接中...</span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <div class="main-container">
+        <!-- 仪表盘页面 -->
+        <div id="dashboard" class="page active">
+            <!-- 顶部卡片组 -->
+            <div class="cards-row">
+                <!-- 座位状态卡片 -->
+                <div class="card status-card" id="statusCard">
+                    <div class="card-icon" id="statusIcon">⏳</div>
+                    <div class="card-content">
+                        <h2 id="statusText">连接中...</h2>
+                        <p id="statusDuration">等待数据</p>
+                    </div>
+                </div>
+
+                <!-- 今日统计卡片 -->
+                <div class="card stat-card">
+                    <div class="stat-icon">📊</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="todayCount">0</div>
+                        <div class="stat-label">今日占用次数</div>
+                    </div>
+                </div>
+
+                <!-- 平均时长卡片 -->
+                <div class="card stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="avgDuration">0分钟</div>
+                        <div class="stat-label">平均占用时长</div>
+                    </div>
+                </div>
+
+                <!-- 设备状态卡片 -->
+                <div class="card stat-card">
+                    <div class="stat-icon">📡</div>
+                    <div class="stat-content">
+                        <div class="stat-value" id="deviceStatus">离线</div>
+                        <div class="stat-label">设备状态</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 传感器数据区 -->
+            <div class="section">
+                <h3 class="section-title">传感器实时数据</h3>
+                <div class="sensors-grid">
+                    <div class="sensor-card">
+                        <div class="sensor-icon">🌡️</div>
+                        <div class="sensor-value" id="temperature">--</div>
+                        <div class="sensor-label">温度 (°C)</div>
+                    </div>
+                    <div class="sensor-card">
+                        <div class="sensor-icon">💧</div>
+                        <div class="sensor-value" id="humidity">--</div>
+                        <div class="sensor-label">湿度 (%)</div>
+                    </div>
+                    <div class="sensor-card">
+                        <div class="sensor-icon">💡</div>
+                        <div class="sensor-value" id="lightLevel">--</div>
+                        <div class="sensor-label">光照 (%)</div>
+                    </div>
+                    <div class="sensor-card">
+                        <div class="sensor-icon">⚖️</div>
+                        <div class="sensor-value" id="pressure">--</div>
+                        <div class="sensor-label">压力</div>
+                    </div>
+                    <div class="sensor-card">
+                        <div class="sensor-icon">📏</div>
+                        <div class="sensor-value" id="distance">--</div>
+                        <div class="sensor-label">距离 (cm)</div>
+                    </div>
+                    <div class="sensor-card">
+                        <div class="sensor-icon">🔊</div>
+                        <div class="sensor-value" id="sound">--</div>
+                        <div class="sensor-label">声音</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 图表区 -->
+            <div class="charts-row">
+                <div class="chart-card">
+                    <h3 class="chart-title">24小时占用趋势</h3>
+                    <canvas id="occupancyChart"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3 class="chart-title">环境参数变化</h3>
+                    <canvas id="environmentChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- 历史记录页面 -->
+        <div id="history" class="page">
+            <div class="section">
+                <h3 class="section-title">历史记录</h3>
+                <div class="history-table">
+                    <table id="historyTable">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>状态</th>
+                                <th>温度</th>
+                                <th>湿度</th>
+                                <th>光照</th>
+                                <th>持续时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyBody">
+                            <tr><td colspan="6" class="no-data">暂无数据</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据统计页面 -->
+        <div id="statistics" class="page">
+            <div class="section">
+                <h3 class="section-title">数据统计分析</h3>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-box-title">今日统计</div>
+                        <div class="stat-box-content">
+                            <p>占用次数: <span id="statTodayCount">0</span></p>
+                            <p>占用时长: <span id="statTodayTime">0分钟</span></p>
+                        </div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-box-title">总计统计</div>
+                        <div class="stat-box-content">
+                            <p>总占用次数: <span id="statTotalCount">0</span></p>
+                            <p>总占用时长: <span id="statTotalTime">0分钟</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 系统设置页面 -->
+        <div id="settings" class="page">
+            <div class="section">
+                <h3 class="section-title">系统设置</h3>
+                <div class="settings-content">
+                    <div class="setting-item">
+                        <label>设备名称:</label>
+                        <input type="text" id="deviceName" value="座位001" />
+                    </div>
+                    <div class="setting-item">
+                        <label>设备位置:</label>
+                        <input type="text" id="deviceLocation" value="图书馆-阅览室A-01号" />
+                    </div>
+                    <div class="setting-item">
+                        <label>刷新间隔:</label>
+                        <select id="refreshInterval">
+                            <option value="2000" selected>2秒</option>
+                            <option value="5000">5秒</option>
+                            <option value="10000">10秒</option>
+                        </select>
+                    </div>
+                    <button class="btn-primary" onclick="saveSettings()">保存设置</button>
+                    <button class="btn-danger" onclick="clearHistory()">清空历史数据</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/dashboard.js"></script>
+</body>
+</html>

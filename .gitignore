@@ -1,0 +1,32 @@
+# Node.js
+node_modules/
+npm-debug.log
+package-lock.json
+
+# 历史数据文件
+server/history.json
+server/history_multi.json
+
+# Keil编译输出
+STM32_code/Objects/
+STM32_code/Listings/
+STM32_code/*.uvguix.*
+STM32_code/*.bak
+STM32_code/*.dep
+
+# 临时文件
+*.tmp
+*.log
+*.swp
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE配置
+.vscode/
+.idea/
+*.suo
+*.user
