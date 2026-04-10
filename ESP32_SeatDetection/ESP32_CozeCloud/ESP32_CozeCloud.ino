@@ -384,24 +384,45 @@ void registerDevice() {
 void processSTM32Data() {
     static uint8_t rxBuffer[64];
     static uint8_t rxIndex = 0;
+    static unsigned long lastByteTime = 0;
+    static int totalBytesReceived = 0;
     
     while (STM32_SERIAL.available()) {
         uint8_t byte = STM32_SERIAL.read();
+        totalBytesReceived++;
+        lastByteTime = millis();
+        
+        // 调试：打印接收到的字节
+        if (totalBytesReceived <= 10) {
+            Serial.printf("[RX] Byte %d: 0x%02X\n", totalBytesReceived, byte);
+        }
         
         if (rxIndex == 0 && byte == 0xAA) {
             rxBuffer[rxIndex++] = byte;
+            Serial.println("[RX] Found packet header 0xAA");
         }
         else if (rxIndex > 0 && rxIndex < sizeof(rxBuffer)) {
             rxBuffer[rxIndex++] = byte;
             
             if (rxIndex >= 37 && rxBuffer[36] == 0x55) {
+                Serial.printf("[RX] Complete packet received (%d bytes)\n", rxIndex);
                 parseDataPacket(rxBuffer, rxIndex);
                 rxIndex = 0;
             }
         }
         else {
+            Serial.printf("[RX] Buffer overflow or invalid data, reset (rxIndex=%d)\n", rxIndex);
             rxIndex = 0;
         }
+    }
+    
+    // 定期报告串口状态
+    static unsigned long lastStatusReport = 0;
+    if (millis() - lastStatusReport > 5000) {
+        lastStatusReport = millis();
+        Serial.printf("[STATUS] Total bytes received: %d, Last byte: %lu ms ago\n", 
+            totalBytesReceived, 
+            lastByteTime > 0 ? (millis() - lastByteTime) : 0);
     }
 }
 
